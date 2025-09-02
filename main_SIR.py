@@ -18,7 +18,8 @@ class SIRSimulation:
         self.size = 100
         self.density = 0.6
         self.infectivity = 0.3
-        self.jump_infectivity = 0.01  # <-- New parameter for jumping
+        self.recovery_rate = 0.1  # <-- New parameter
+        self.jump_infectivity = 0.01
         self.time = 0
         self.max_time = 1000
 
@@ -34,7 +35,7 @@ class SIRSimulation:
         self.time_steps = []
 
         # Colormaps
-        self.cmap = ListedColormap(["green", "red", "grey"])
+        self.cmap = ListedColormap(["green", "red", "blue"])
 
         # Init grid
         self.reset_grid()
@@ -42,11 +43,11 @@ class SIRSimulation:
         # --- Matplotlib Figures ---
         self.fig_grid, self.ax_grid = plt.subplots(figsize=(4, 4))
         self.canvas_grid = FigureCanvasTkAgg(self.fig_grid, master)
-        self.canvas_grid.get_tk_widget().grid(row=0, column=0, rowspan=10, padx=10, pady=10)
+        self.canvas_grid.get_tk_widget().grid(row=0, column=0, rowspan=11, padx=10, pady=10)
 
         self.fig_curve, self.ax_curve = plt.subplots(figsize=(4, 3))
         self.canvas_curve = FigureCanvasTkAgg(self.fig_curve, master)
-        self.canvas_curve.get_tk_widget().grid(row=10, column=0, rowspan=2, padx=10, pady=10)
+        self.canvas_curve.get_tk_widget().grid(row=11, column=0, rowspan=2, padx=10, pady=10)
 
         # --- Sliders ---
         ttk.Label(master, text="Time").grid(row=0, column=1, sticky="w")
@@ -66,19 +67,26 @@ class SIRSimulation:
         self.infectivity_slider.set(self.infectivity)
         self.infectivity_slider.grid(row=5, column=1, sticky="ew")
 
+        # New slider for recovery rate
+        ttk.Label(master, text="Recovery Rate").grid(row=6, column=1, sticky="w")
+        self.recovery_slider = tk.Scale(master, from_=0.0, to=1.0, resolution=0.05,
+                                        orient="horizontal", command=self.update_recovery_rate, length=200)
+        self.recovery_slider.set(self.recovery_rate)
+        self.recovery_slider.grid(row=7, column=1, sticky="ew")
+
         # New slider for jump infectivity
-        ttk.Label(master, text="Jump Infectivity").grid(row=6, column=1, sticky="w")
+        ttk.Label(master, text="Jump Infectivity").grid(row=8, column=1, sticky="w")
         self.jump_slider = tk.Scale(master, from_=0.0, to=0.2, resolution=0.005,
                                     orient="horizontal", command=self.update_jump_infectivity, length=200)
         self.jump_slider.set(self.jump_infectivity)
-        self.jump_slider.grid(row=7, column=1, sticky="ew")
+        self.jump_slider.grid(row=9, column=1, sticky="ew")
 
         # --- Control Buttons ---
         self.control_button = ttk.Button(master, text="Play", command=self.toggle_simulation)
-        self.control_button.grid(row=8, column=1, sticky="ew", pady=5)
+        self.control_button.grid(row=10, column=1, sticky="ew", pady=5)
 
         self.reset_button = ttk.Button(master, text="Reset Simulation", command=self.reset_simulation)
-        self.reset_button.grid(row=9, column=1, sticky="ew", pady=5)
+        self.reset_button.grid(row=11, column=1, sticky="ew", pady=5)
 
         self.draw_grid()
         self.draw_logistic_curve()
@@ -92,11 +100,14 @@ class SIRSimulation:
             while self.time < t:
                 self.step()
                 self.time += 1
+                self.record_data()  # Fixed: Added data recording
         elif self.time > t:
             self.reset_grid()
+            self.record_data()  # Fixed: Record initial state after reset
             for _ in range(t):
                 self.step()
-            self.time = t
+                self.time += 1
+                self.record_data()  # Fixed: Added data recording
         self.draw_grid()
         self.draw_logistic_curve()
 
@@ -106,6 +117,9 @@ class SIRSimulation:
 
     def update_infectivity(self, val):
         self.infectivity = float(val)
+
+    def update_recovery_rate(self, val):
+        self.recovery_rate = float(val)
 
     def update_jump_infectivity(self, val):
         self.jump_infectivity = float(val)
@@ -139,6 +153,7 @@ class SIRSimulation:
         self.reset_grid()
         self.draw_grid()
         self.draw_logistic_curve()
+        self.record_data()  # Fixed: Record initial state after reset
 
     def _get_non_neighbor_susceptible_cell(self, i, j, susceptible_indices):
         """Finds a random susceptible cell that is not adjacent to (i,j)."""
@@ -169,9 +184,12 @@ class SIRSimulation:
                 if 0 <= ni < self.size and 0 <= nj < self.size:
                     if self.grid[ni, nj] == 0 and np.random.rand() < self.infectivity:
                         new_grid[ni, nj] = 1
-            new_grid[i, j] = 2
 
-        # 2. "Jump" infection
+            # 2. Recovery from infected state based on recovery rate
+            if np.random.rand() < self.recovery_rate:
+                new_grid[i, j] = 2
+
+        # 3. "Jump" infection
         for i, j in infected_indices:
             if np.random.rand() < self.jump_infectivity:
                 ti, tj = self._get_non_neighbor_susceptible_cell(i, j, susceptible_indices)
@@ -179,6 +197,13 @@ class SIRSimulation:
                     new_grid[ti, tj] = 1
 
         self.grid = new_grid
+
+    def record_data(self):
+        """Records the current counts of S, I, and R populations."""
+        self.time_steps.append(self.time)
+        self.susceptible_count.append(np.sum(self.grid == 0))
+        self.infected_count.append(np.sum(self.grid == 1))
+        self.recovered_count.append(np.sum(self.grid == 2))
 
     def draw_grid(self):
         self.ax_grid.clear()
@@ -192,7 +217,7 @@ class SIRSimulation:
         self.ax_curve.clear()
         self.ax_curve.plot(self.time_steps, self.susceptible_count, label='Susceptible', color='green')
         self.ax_curve.plot(self.time_steps, self.infected_count, label='Infected', color='red')
-        self.ax_curve.plot(self.time_steps, self.recovered_count, label='Recovered', color='grey')
+        self.ax_curve.plot(self.time_steps, self.recovered_count, label='Recovered', color='blue')
         self.ax_curve.set_title("SIR Model Curve")
         self.ax_curve.set_xlabel("Time Step")
         self.ax_curve.set_ylabel("Population")
@@ -234,11 +259,7 @@ class SIRSimulation:
             self.time += 1
             self.time_slider.set(self.time)
 
-            self.time_steps.append(self.time)
-            self.susceptible_count.append(np.sum(self.grid == 0))
-            self.infected_count.append(np.sum(self.grid == 1))
-            self.recovered_count.append(np.sum(self.grid == 2))
-
+            self.record_data()  # Fixed: Added data recording inside the loop
             self.draw_grid()
             self.draw_logistic_curve()
 

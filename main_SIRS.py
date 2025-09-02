@@ -76,7 +76,7 @@ class SIRSImmunitySimulation:
         self.recovery_slider.grid(row=7, column=1, sticky="ew")
 
         ttk.Label(master, text="Waning Immunity Rate").grid(row=8, column=1, sticky="w")
-        self.waning_immunity_slider = tk.Scale(master, from_=0.0, to=0.2, resolution=0.005,
+        self.waning_immunity_slider = tk.Scale(master, from_=0.0, to=1.0, resolution=0.005,
                                                orient="horizontal", command=self.update_waning_immunity_rate,
                                                length=200)
         self.waning_immunity_slider.set(self.waning_immunity_rate)

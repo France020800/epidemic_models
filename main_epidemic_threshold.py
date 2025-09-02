@@ -46,7 +46,6 @@ def run_sir_simulation(
         new_waning = waning_immunity_rate * R
 
         # Update the population states, ensuring they don't go below zero
-        # The number of people who can be newly infected is limited by S
         actual_new_infections = min(new_infections, S)
 
         # Update S
@@ -62,7 +61,6 @@ def run_sir_simulation(
         if I < 0.5:
             I = 0
 
-        # Update the cumulative infected count
         cumulative_infected += actual_new_infections
 
         # Ensure the total population remains constant
@@ -71,7 +69,6 @@ def run_sir_simulation(
             # Distribute any small floating point errors
             S += total_population - total
 
-    # Return the final percentage of the population that was ever infected
     return (cumulative_infected / total_population) * 100
 
 
@@ -81,7 +78,7 @@ def main():
     """
     # Fixed parameters for the simulation
     TOTAL_POPULATION = 100000
-    INFECTIVITY = 0.3
+    INFECTIVITY = 0.5
     RECOVERY_RATE = 0.2
     WANING_IMMUNITY_RATE = 0.0
 
@@ -104,7 +101,7 @@ def main():
         infected_percentages.append(infected_percent)
 
     # Plot the results
-    plt.style.use('fivethirtyeight')  # A nice style for the plot
+    plt.style.use('fivethirtyeight')
     plt.figure(figsize=(10, 6))
     plt.plot(population_densities, infected_percentages, marker='o', linestyle='-', color='#1f77b4')
     plt.title('Impact of Population Density on Total Infections')

@@ -22,7 +22,7 @@ class SISImmunitySimulation:
         self.jump_infectivity = 0.01
         self.partial_immunity_percentage = 0.5
         self.time = 0
-        self.max_time = 1000
+        self.max_time = 10000
 
         # Simulation state
         self.running = False
